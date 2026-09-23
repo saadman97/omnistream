@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OmniStream</title>
+  <meta name="description" content="OmniStream is a fast, powerful media directory browser and video player. Index open directories, FTP, Emby, Jellyfin, and HTTP servers into a local searchable database.">
+  <title>OmniStream — Media Library</title>
   <link href="browser.css" rel="stylesheet">
 </head>
 <body>
@@ -160,6 +161,14 @@
     <div class="content" id="content" tabindex="-1">
       <div class="skeleton" id="skeleton"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
       <div class="grid hidden" id="fileGrid"></div>
+      <div class="list-header hidden" id="listHeader">
+        <div class="thumb-spacer"></div>
+        <div class="col-name">Name</div>
+        <div class="cell kind">Type</div>
+        <div class="cell size">Size</div>
+        <div class="cell date">Modified</div>
+        <div class="actions-spacer"></div>
+      </div>
       <div class="list hidden" id="fileList"></div>
       <div class="empty hidden" id="emptyState">
         <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>

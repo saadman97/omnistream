@@ -21,7 +21,7 @@ const els = {
   catNav: $('catNav'), rack: $('rack'), rackCount: $('rackCount'), sideFoot: $('sideFoot'),
   viewTitle: $('viewTitle'), crumb: $('crumb'), resultCount: $('resultCount'),
   newPill: $('newPill'), newPillText: $('newPillText'), newPillBtn: $('newPillBtn'),
-  sortSelect: $('sortSelect'), viewGrid: $('viewGrid'), viewList: $('viewList'),
+  sortSelect: $('sortSelect'), viewGrid: $('viewGrid'), viewList: $('viewList'), listHeader: $('listHeader'),
   filterMenu: document.querySelector('.filter-menu'), filterBtn: $('filterBtn'), filterBadge: $('filterBadge'),
   filterPanel: $('filterPanel'), filterCloseBtn: $('filterCloseBtn'), filterClearBtn: $('filterClearBtn'),
   filterPlayableOnly: $('filterPlayableOnly'),
@@ -526,6 +526,7 @@ function renderPage() {
   const target = isGrid ? els.grid : els.list;
   const other = isGrid ? els.list : els.grid;
   other.classList.add('hidden');
+  els.listHeader.classList.toggle('hidden', isGrid);
   other.replaceChildren();
   target.replaceChildren(frag);
   target.classList.remove('hidden');
@@ -647,21 +648,28 @@ function buildActions(f, container, node) {
   if (f.type === 'Folder') {
     container.append(
       add('Play first episode', ICONS.play, () => play(f.episodes[0], f.parent_url)),
-      add('Open folder on server', ICONS.open, null, f.parent_url),
+      add('Open folder on server', ICONS.open, null, routeUrl(f.parent_url)),
       add('Copy folder link', ICONS.link, () => copy(f.parent_url))
     );
   } else {
     if (f.file_type_category === 'Video' && PLAYABLE_EXT.has(f.ext)) container.appendChild(add('Play', ICONS.play, () => play(f, f.parent_url)));
     container.appendChild(add('Copy link', ICONS.link, () => copy(f.full_url)));
-    container.appendChild(HAS_EXT && chrome.downloads ? add('Download', ICONS.download, () => download(f)) : add('Download', ICONS.download, null, f.full_url));
-    container.appendChild(add('Open folder on server', ICONS.open, null, f.parent_url));
+    container.appendChild(HAS_EXT && chrome.downloads ? add('Download', ICONS.download, () => download(f)) : add('Download', ICONS.download, null, routeUrl(f.full_url)));
+    container.appendChild(add('Open folder on server', ICONS.open, null, routeUrl(f.parent_url)));
   }
+}
+
+function routeUrl(url) {
+  if (url && url.startsWith('ftp://')) {
+    return 'http://127.0.0.1:8999/ftp-stream?url=' + encodeURIComponent(url);
+  }
+  return url;
 }
 
 function primaryAction(f) {
   if (f.type === 'Folder') return openFolder(f);
   if (f.file_type_category === 'Video' && PLAYABLE_EXT.has(f.ext)) return play(f, f.parent_url);
-  window.open(f.full_url, '_blank', 'noopener');
+  window.open(routeUrl(f.full_url), '_blank', 'noopener');
 }
 
 function primaryLabel(f) {
@@ -898,7 +906,7 @@ function relativeTime(ts) {
 
 function play(f, parent) {
   if (!f) return;
-  const url = `player.html?src=${encodeURIComponent(f.full_url)}&parent=${encodeURIComponent(parent || f.parent_url || '')}`;
+  const url = `player.html?src=${encodeURIComponent(routeUrl(f.full_url))}&parent=${encodeURIComponent(routeUrl(parent || f.parent_url || ''))}`;
   window.open(url, '_blank', 'noopener');
 }
 
@@ -1034,7 +1042,7 @@ function bindFilterPanel() {
 
 async function download(f) {
   try {
-    await chrome.downloads.download({ url: f.full_url, filename: f.filename.replace(/[\\/:*?"<>|]/g, '_'), conflictAction: 'uniquify' });
+    await chrome.downloads.download({ url: routeUrl(f.full_url), filename: f.filename.replace(/[\\/:*?"<>|]/g, '_'), conflictAction: 'uniquify' });
     toast(`Downloading ${f.filename}`, { kind: 'ok', ttl: 2500 });
   } catch (e) {
     toast('Download failed: ' + e.message, { kind: 'err' });

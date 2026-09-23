@@ -620,6 +620,26 @@ async function handleAddEmbyServer(rawUrl, username, password, apiKey) {
 /* ------------------------------------------------------------------ */
 
 function bind() {
+  const backBtn = $('backBtn');
+  if (backBtn) {
+    backBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (window.electronAPI) {
+        window.electronAPI.openBrowser();
+        window.close();
+      } else if (HAS_EXT) {
+        try {
+          await chrome.runtime.sendMessage({ type: 'OPEN_BROWSER' });
+          window.close();
+        } catch (err) {
+          window.location.href = 'browser.html';
+        }
+      } else {
+        window.location.href = 'browser.html';
+      }
+    });
+  }
+
   for (const [key, spec] of Object.entries(NUMERIC)) {
     $(key).addEventListener('change', e => {
       let v = parseInt(e.target.value, 10);

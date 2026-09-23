@@ -13,6 +13,7 @@ let playlist = [];
 let current = null;
 let currentHls = null;
 let currentDash = null;
+let plyrInstance = null;
 
 function isHttpUrl(s) {
   try { const u = new URL(s); return u.protocol === 'http:' || u.protocol === 'https:'; } catch (e) { return false; }
@@ -44,6 +45,14 @@ async function init() {
     $('prevBtn').classList.add('hidden');
     $('nextBtn').classList.add('hidden');
     $('autoNext').parentElement.classList.add('hidden');
+  }
+
+  if (!plyrInstance) {
+    plyrInstance = new Plyr(video, {
+      keyboard: { focused: false, global: false }, // we use custom global shortcuts
+      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+      settings: ['captions', 'quality', 'speed', 'loop']
+    });
   }
 
   const found = playlist.find(f => f.full_url === src);
@@ -78,9 +87,11 @@ function load(file) {
     currentHls = new Hls();
     currentHls.loadSource(url);
     currentHls.attachMedia(video);
+    window.hls = currentHls;
   } else if (typeof dashjs !== 'undefined' && (ext.startsWith('mpd') || url.includes('.mpd'))) {
     currentDash = dashjs.MediaPlayer().create();
     currentDash.initialize(video, url, true);
+    window.dash = currentDash;
   } else {
     video.src = url;
   }
@@ -203,9 +214,10 @@ function bind() {
       case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.05); break;
       case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.05); break;
       case 'm': video.muted = !video.muted; break;
-      case 'f': document.fullscreenElement ? document.exitFullscreen() : video.requestFullscreen(); break;
+      case 'f': document.fullscreenElement ? document.exitFullscreen() : (plyrInstance ? plyrInstance.fullscreen.enter() : video.requestFullscreen()); break;
       case 'n': step(1); break;
       case 'p': step(-1); break;
+      case 'v': if (plyrInstance) plyrInstance.toggleCaptions(); break;
     }
   });
 }
