@@ -140,6 +140,15 @@ function step(delta) {
 }
 
 function bind() {
+  $('backBtn').addEventListener('click', e => {
+    e.preventDefault();
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = 'browser.html';
+    }
+  });
+
   $('prevBtn').addEventListener('click', () => step(-1));
   $('nextBtn').addEventListener('click', () => step(1));
   
