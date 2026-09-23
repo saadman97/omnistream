@@ -1,42 +1,121 @@
-# Vault — Open Directory Video Browser
+# OmniStream — Chrome Extension for Open Directory & Media Server Video Streaming
 
-A Manifest V3 Chrome extension that turns a set of HTTP open directories (FTP mirrors, index pages) into a fast, searchable local library. It crawls every server concurrently, stores the file list in IndexedDB, and lets you search, filter, and play videos straight in the browser.
+<p align="center">
+  <img src="icons/icon128.png" alt="OmniStream Logo" width="96" height="96" />
+</p>
 
-No build step, no `node_modules`, no frameworks — vanilla JavaScript and hand-written CSS.
+<p align="center">
+  <strong>High-performance Manifest V3 Chrome extension for crawling, searching, and streaming video from open directories and media servers.</strong><br>
+  Turn HTTP/HTTPS open directories, Emby/Jellyfin servers, and web media indexes into an instant, searchable in-browser video library.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://github.com/saadman97/omnistream"><img src="https://img.shields.io/badge/version-2.1.0-blue.svg?style=flat-square" alt="Version 2.1.0"></a>
+  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/manifest-v3-success.svg?style=flat-square" alt="Manifest V3"></a>
+  <a href="https://github.com/saadman97/omnistream/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/saadman97/omnistream-desktop"><img src="https://img.shields.io/badge/desktop%20app-macOS%20%7C%20Windows-blueviolet.svg?style=flat-square" alt="Desktop App Available"></a>
+</p>
 
-- **Fast concurrent crawler** — per-host round-robin scheduling keeps every server saturated at Chrome's 6-socket limit instead of hammering one host; request timeouts, retries, depth limits, batched IndexedDB writes.
-- **Stop & resume** — progress is checkpointed; an interrupted crawl can be resumed from where it stopped.
-- **Incremental updates** — the old index stays visible while a new crawl runs; stale entries are removed when it completes.
-- **Instant search** — the whole library lives in memory; filter with prefixes: `ext:mkv`, `is:series`, `is:movie`, `server:ftp4`.
-- **Series grouping** — episodes collapse into one folder card; open it to see every episode.
-- **Lazy thumbnails** — frames are captured from the video as you scroll (throttled, black-frame retry) and cached in IndexedDB.
-- **Built-in player** — `player.html` with a folder playlist, auto-next, resume position and keyboard shortcuts.
-- **Settings page** — add or remove servers (with on-demand host permission), tune crawler limits, thumbnails and library options, export/import the server list, clear data.
+---
 
-## Install
+> 💡 **Need native FTP streaming or a standalone desktop app?**<br>
+> Google Chrome deprecated raw `ftp://` protocol support. If you need direct connection to FTP/FTPS mirrors, seeking, and a native desktop experience without browser constraints, check out [**OmniStream Desktop**](https://github.com/saadman97/omnistream-desktop).
 
-1. Open `chrome://extensions/` and enable **Developer mode**.
-2. Click **Load unpacked** and choose this folder.
-3. Click the Vault icon (or press `Alt+Shift+V`) to open the library.
+---
 
-## Use
+## 🌐 What is OmniStream?
 
-1. Click **Update index**. The strip under the header shows live progress; the server rack in the sidebar lights up per server.
-2. Search with `/`, pick a category, or click a server to filter. `←` `→` page through results.
-3. Click a card to play (videos) or open (everything else). Hover a card for copy-link, download and open-folder actions.
-4. Open **Settings** (gear icon) to add your own servers. Enter the **http://** address of the directory — Chrome no longer supports `ftp://`.
+**OmniStream** is a lightweight, zero-dependency browser extension (Manifest V3) that crawls remote web directories, parses video and audio media files, caches them into an offline-ready IndexedDB index, and lets you stream and scrub media directly in Google Chrome, Brave, Microsoft Edge, and Chromium browsers.
 
-## Files
+Zero build steps, zero external frameworks, and zero tracking — hand-crafted vanilla JavaScript and CSS running directly in your browser.
+
+---
+
+## ✨ Key Features
+
+- ⚡ **High-Speed Concurrent Crawler**
+  Per-host round-robin scheduling saturates connections efficiently while respecting Chromium's 6-socket limit. Features depth limits, automatic timeouts, crawl pause/resume checkpoints, and batched IndexedDB storage writes.
+- 🎯 **Multi-Server & Directory Support**
+  Index standard HTTP/HTTPS open directories (Apache, Nginx, Caddy, IIS directory listings), JavaScript-rendered directories, and authenticated or public Emby & Jellyfin media servers.
+- 🔍 **Instant In-Memory Search & Filters**
+  Fast interactive search with specialized filter operators:
+  - `ext:mkv`, `ext:mp4`, `ext:webm` — filter by file extension
+  - `is:series`, `is:movie` — smart grouping for television seasons and episodes
+  - `server:host` — narrow down search to specific configured servers
+- 🎞️ **Lazy Video Thumbnails**
+  Extracts video frame snapshots dynamically as you scroll through cards, caching them locally in IndexedDB with intelligent black-frame retry and HTML5 canvas rendering.
+- 📺 **Built-In Streaming Video Player**
+  Integrated `player.html` with playlist queue, automatic next-episode autoplay, playback position resume, M3U playlist import/export, and keyboard shortcuts.
+- ⚙️ **Comprehensive Settings & Manager**
+  Add, disable, test, or re-crawl servers on demand, tune crawler concurrency and timeout limits, and import/export server configuration profiles.
+
+---
+
+## 🚀 Installation
+
+### Load Unpacked in Chromium Browsers (Chrome, Brave, Edge, Opera)
+
+1. Clone or download this repository:
+   ```bash
+   git clone https://github.com/saadman97/omnistream.git
+   ```
+2. Open your browser and navigate to the Extensions page:
+   - **Google Chrome**: `chrome://extensions/`
+   - **Brave**: `brave://extensions/`
+   - **Microsoft Edge**: `edge://extensions/`
+3. Toggle on **Developer mode** in the top right corner.
+4. Click **Load unpacked** and select the `omnistream` directory.
+5. Click the OmniStream extension icon (or press `Alt + Shift + V` / `Option + Shift + V`) to open your media library.
+
+---
+
+## 📖 How to Use
+
+1. **Update Index**: Click **Update index** in the header. The live indexing strip visualizes real-time crawl statistics (files read, folders discovered, queue size, flight speed, and errors).
+2. **Search & Filter**: Press `/` to focus the search bar, filter by category tabs in the sidebar, or click individual servers to isolate results.
+3. **Stream Video**: Click any video card to stream immediately in the built-in player. Hover for quick actions (copy stream link, download file, or open source folder on server).
+4. **Manage Servers**: Click the gear icon to open **Settings**. Add custom HTTP/HTTPS open directory URLs or Emby/Jellyfin server instances with optional credentials.
+
+---
+
+## 🏗️ Architecture
 
 | File | Purpose |
-| --- | --- |
-| `manifest.json` | MV3 manifest. Host permissions for the default servers plus optional `http://*/*` / `https://*/*` requested when you add a server. |
-| `background.js` | Service worker: crawler, scheduler, checkpoints, dynamic CORS rules. |
-| `shared.js` | Constants, settings/servers storage helpers, IndexedDB helpers. Loaded by the worker (`importScripts`) and every page. |
-| `browser.html/js` | Library UI. |
-| `settings.html/js` | Settings page (also the extension's options page). |
-| `player.html/js` | Video player with playlist. |
-| `browser.css` | The design system shared by all pages. |
-| `rules.json` | Static declarativeNetRequest rules that add CORS headers for the default hosts so thumbnail capture works. |
+|---|---|
+| `manifest.json` | Manifest V3 specification with declarativeNetRequest and background service worker. |
+| `background.js` | Service worker managing the concurrent crawler, scheduler, checkpoints, and CORS headers. |
+| `shared.js` | URL normalization, IndexedDB helpers, server models, and media classification routines. |
+| `browser.html` / `browser.js` | Main media library UI featuring grid/list toggle, sorting, and instant search. |
+| `player.html` / `player.js` | In-browser video player with playlist queue and keyboard controls. |
+| `settings.html` / `settings.js` | Server management, crawler configuration, and connection testing. |
+| `browser.css` | Sleek dark-mode design system with responsive layouts. |
+| `rules.json` | DeclarativeNetRequest CORS header rules enabling canvas frame capture. |
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Scope | Action |
+|---|---|---|
+| <kbd>/</kbd> | Library | Focus instant search |
+| <kbd>Esc</kbd> | Library | Clear search or dismiss popups |
+| <kbd>Space</kbd> / <kbd>k</kbd> | Player | Play / Pause |
+| <kbd>←</kbd> / <kbd>→</kbd> | Player | Seek 10s backward / forward |
+| <kbd>j</kbd> / <kbd>l</kbd> | Player | Seek 30s backward / forward |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Player | Volume up / down |
+| <kbd>m</kbd> | Player | Toggle mute |
+| <kbd>f</kbd> | Player | Toggle fullscreen |
+| <kbd>n</kbd> / <kbd>p</kbd> | Player | Next / previous video in playlist |
+| <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> | Global | Open OmniStream Library |
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+  Looking for the native desktop application with FTP support? Visit <a href="https://github.com/saadman97/omnistream-desktop"><strong>OmniStream Desktop</strong></a>.
+</p>
