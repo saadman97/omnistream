@@ -669,10 +669,8 @@ function buildActions(f, container, node) {
 }
 
 function routeUrl(url) {
-  if (url && url.startsWith('ftp://')) {
-    return 'http://127.0.0.1:8999/ftp-stream?url=' + encodeURIComponent(url);
-  }
-  return url;
+  // Only applies to direct opens (not player params). Player resolves FTP internally.
+  return url || '';
 }
 
 function primaryAction(f) {
@@ -920,7 +918,8 @@ function relativeTime(ts) {
 
 function play(f, parent) {
   if (!f) return;
-  const url = `player.html?src=${encodeURIComponent(routeUrl(f.full_url))}&parent=${encodeURIComponent(routeUrl(parent || f.parent_url || ''))}`;
+  // Always pass raw URLs — player.js resolves FTP via proxy at playback time
+  const url = `player.html?src=${encodeURIComponent(f.full_url)}&parent=${encodeURIComponent(parent || f.parent_url || '')}`;
   window.location.href = url;
 }
 

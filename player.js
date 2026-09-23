@@ -15,6 +15,22 @@ let currentHls = null;
 let currentDash = null;
 let plyrInstance = null;
 
+// Resolve an FTP url to the local proxy if running in the desktop app
+function resolvePlaybackUrl(url) {
+  if (!url) return '';
+  if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.resolveMediaUrl === 'function') {
+    return window.electronAPI.resolveMediaUrl(url);
+  }
+  return url;
+}
+
+function isValidUrl(s) {
+  try {
+    const u = new URL(s);
+    return ['http:', 'https:', 'ftp:', 'ftps:'].includes(u.protocol);
+  } catch (e) { return false; }
+}
+
 function isHttpUrl(s) {
   try { const u = new URL(s); return u.protocol === 'http:' || u.protocol === 'https:'; } catch (e) { return false; }
 }
@@ -22,14 +38,16 @@ function isHttpUrl(s) {
 async function init() {
   const src = params.get('src');
   const parent = params.get('parent');
-  if (!src || !isHttpUrl(src)) {
+
+  if (!src || !isValidUrl(src)) {
     $('title').textContent = 'No video selected';
     $('fail').classList.remove('hidden');
     $('failText').textContent = 'Open a video from the library to play it here.';
     return;
   }
 
-  if (parent && isHttpUrl(parent)) {
+  // Load the folder playlist from IndexedDB — works for both HTTP and FTP parent dirs
+  if (parent && isValidUrl(parent)) {
     try {
       const db = await openDB();
       const tx = db.transaction(STORE_FILES, 'readonly');
@@ -39,6 +57,7 @@ async function init() {
         .sort((a, b) => collator.compare(a.filename, b.filename));
     } catch (e) { console.warn('playlist unavailable', e); }
   }
+
   if (playlist.length < 2) {
     $('page').classList.add('solo');
     $('playlist').classList.add('hidden');
@@ -49,7 +68,7 @@ async function init() {
 
   if (!plyrInstance) {
     plyrInstance = new Plyr(video, {
-      keyboard: { focused: false, global: false }, // we use custom global shortcuts
+      keyboard: { focused: false, global: false },
       controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
       settings: ['captions', 'quality', 'speed', 'loop']
     });
@@ -67,7 +86,7 @@ function decodeName(url) {
 function load(file) {
   current = file;
   const name = file.filename || decodeName(file.full_url);
-  document.title = `${name} · Vault`;
+  document.title = `${name} · OmniStream`;
   $('title').textContent = name;
   $('title').title = file.full_url;
   $('sub').textContent = [file.server_name, file.size_bytes ? formatBytes(file.size_bytes) : null, file.ext ? file.ext.toUpperCase() : null].filter(Boolean).join(' · ');
@@ -80,25 +99,27 @@ function load(file) {
   if (currentHls) { currentHls.destroy(); currentHls = null; }
   if (currentDash) { currentDash.reset(); currentDash = null; }
 
-  const url = file.full_url;
-  const ext = url.split('.').pop().toLowerCase();
+  const rawUrl = file.full_url;
+  const playbackUrl = resolvePlaybackUrl(rawUrl);
+  const ext = rawUrl.split('.').pop().toLowerCase().split('?')[0].split('#')[0];
 
-  if (typeof Hls !== 'undefined' && Hls.isSupported() && (ext.startsWith('m3u') || url.includes('.m3u'))) {
-    currentHls = new Hls();
-    currentHls.loadSource(url);
+  if (typeof Hls !== 'undefined' && Hls.isSupported() && (ext.startsWith('m3u') || rawUrl.includes('.m3u'))) {
+    currentHls = new Hls({ enableWorker: false });
+    currentHls.loadSource(playbackUrl);
     currentHls.attachMedia(video);
     window.hls = currentHls;
-  } else if (typeof dashjs !== 'undefined' && (ext.startsWith('mpd') || url.includes('.mpd'))) {
+  } else if (typeof dashjs !== 'undefined' && (ext === 'mpd' || rawUrl.includes('.mpd'))) {
     currentDash = dashjs.MediaPlayer().create();
-    currentDash.initialize(video, url, true);
+    currentDash.initialize(video, playbackUrl, true);
     window.dash = currentDash;
   } else {
-    video.src = url;
+    video.src = playbackUrl;
   }
-  const saved = parseFloat(localStorage.getItem('vault.pos:' + file.full_url) || '0');
+
+  const saved = parseFloat(localStorage.getItem('omnistream.pos:' + rawUrl) || '0');
   if (saved > 5) {
     video.addEventListener('loadedmetadata', () => {
-      if (current !== file) return; // another file was loaded before metadata arrived
+      if (current !== file) return;
       if (isFinite(video.duration) && saved < video.duration - 10) video.currentTime = saved;
     }, { once: true });
   }
@@ -139,21 +160,37 @@ function step(delta) {
   if (next) load(next);
 }
 
+function goBack() {
+  // Desktop: open library window and close this player
+  if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.openBrowser === 'function') {
+    window.electronAPI.openBrowser();
+    return;
+  }
+  // Extension: navigate within same tab back to library
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = 'browser.html';
+  }
+}
+
 function bind() {
   $('backBtn').addEventListener('click', e => {
     e.preventDefault();
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      window.location.href = 'browser.html';
-    }
+    goBack();
   });
 
   $('prevBtn').addEventListener('click', () => step(-1));
   $('nextBtn').addEventListener('click', () => step(1));
-  
+
   $('externalBtn').addEventListener('click', () => {
     if (!current) return;
+    // Desktop: use shell to open in default player
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
+      window.electronAPI.openExternal(current.full_url);
+      return;
+    }
+    // Extension: generate .m3u playlist and download it
     const m3u = `#EXTM3U\n#EXTINF:-1,${current.filename}\n${current.full_url}\n`;
     const blob = new Blob([m3u], { type: 'audio/x-mpegurl' });
     const url = URL.createObjectURL(blob);
@@ -165,11 +202,21 @@ function bind() {
     toast('Playlist generated. Open it to play in your default media player.', { kind: 'ok' });
   });
 
-  // The download attribute is ignored cross-origin; use the downloads API when available.
+  // Download button handler
   const HAS_DL = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id && chrome.downloads;
   for (const id of ['dlBtn', 'failDl']) {
     $(id).addEventListener('click', async e => {
-      if (!HAS_DL || !current) return;
+      if (!current) return;
+      // Desktop native download
+      if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.downloadFile === 'function') {
+        e.preventDefault();
+        try {
+          await window.electronAPI.downloadFile(current.full_url, current.filename || decodeName(current.full_url));
+          toast('Download started', { kind: 'ok' });
+        } catch (err) { toast('Download failed: ' + err.message, { kind: 'err' }); }
+        return;
+      }
+      if (!HAS_DL) return;
       e.preventDefault();
       try {
         await chrome.downloads.download({ url: current.full_url, filename: (current.filename || decodeName(current.full_url)).replace(/[\\/:*?"<>|]/g, '_'), conflictAction: 'uniquify' });
@@ -184,18 +231,22 @@ function bind() {
 
   video.addEventListener('error', () => {
     const code = video.error ? video.error.code : 0;
+    const isFtp = current && /^ftps?:\/\//i.test(current.full_url);
     const isStream = current && /\.(m3u8|mpd)(?:[?#]|$)/i.test(current.full_url);
     $('fail').classList.remove('hidden');
-    if (isStream) {
+    if (isFtp) {
+      $('failText').textContent = 'FTP stream failed. The proxy may not be running or the server is unreachable. Try downloading the file instead.';
+    } else if (isStream) {
       $('failText').textContent = 'This HLS/DASH stream (.m3u8 / .mpd) requires an HLS player or external media player like VLC. Copy the stream link or open raw stream.';
     } else if (code === 2) {
       $('failText').textContent = 'The server stopped sending data. Check that it is reachable, then reload.';
     } else if (code === 4) {
-      $('failText').textContent = 'This container or codec is not supported by Chrome\'s built-in player (common with AVI, WMV and some MKV audio tracks). Open the raw file or download it and play it in VLC.';
+      $('failText').textContent = 'This container or codec is not supported by the built-in player (common with AVI, WMV and some MKV audio tracks). Open the raw file or download it and play it in VLC.';
     } else {
       $('failText').textContent = 'Playback failed. Open the raw file or download it instead.';
     }
   });
+
   video.addEventListener('playing', () => $('fail').classList.add('hidden'));
   video.addEventListener('ended', () => { if ($('autoNext').checked) step(1); });
 
@@ -204,10 +255,11 @@ function bind() {
     const now = Date.now();
     if (now - lastSave < 3000 || !current) return;
     lastSave = now;
+    const key = 'omnistream.pos:' + current.full_url;
     if (video.duration && video.currentTime > 5 && video.currentTime < video.duration - 10) {
-      localStorage.setItem('vault.pos:' + current.full_url, String(video.currentTime));
+      localStorage.setItem(key, String(video.currentTime));
     } else if (video.duration && video.currentTime >= video.duration - 10) {
-      localStorage.removeItem('vault.pos:' + current.full_url);
+      localStorage.removeItem(key);
     }
   });
 
